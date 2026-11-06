@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESC}}">
+<link rel="icon" href="{{IMAGE}}">
+<link rel="apple-touch-icon" href="{{IMAGE}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{TITLE}}">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESC}}">
+<meta property="og:url" content="{{SELF}}">
+<meta property="og:image" content="{{IMAGE}}">
+<meta property="og:image:secure_url" content="{{IMAGE}}">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1080">
+<meta property="og:image:height" content="1080">
+<meta property="og:image:alt" content="{{TITLE}}">
+<link rel="image_src" href="{{IMAGE}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{TITLE}}">
+<meta name="twitter:description" content="{{DESC}}">
+<meta name="twitter:image" content="{{IMAGE}}">
+<meta name="build" content="dycloud-card-v1">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:#f2f4f7;color:#111820;
+  font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:28px 26px 24px;
+  box-shadow:0 12px 40px rgba(15,43,70,.10);text-align:center}
+.icon{width:96px;height:96px;border-radius:22px;object-fit:cover;display:block;margin:0 auto 20px;
+  background:#eef1f5;box-shadow:0 6px 18px rgba(15,43,70,.12)}
+h1{font-size:22px;line-height:1.4;font-weight:600;margin:0 0 10px;letter-spacing:-.01em}
+.desc{font-size:15px;line-height:1.7;color:#5c6773;margin:0 0 24px;white-space:pre-wrap;word-break:break-word}
+.btn{display:block;width:100%;appearance:none;border:0;border-radius:14px;background:#0f2b46;color:#fff;
+  font-size:16px;font-weight:600;padding:15px 20px;cursor:pointer;font-family:inherit;text-decoration:none}
+.btn:active{opacity:.86}
+.tip{margin:18px 0 0;font-size:12.5px;color:#9aa4b0;line-height:1.8}
+.tip b{color:#0f2b46;font-weight:600}
+@media (max-width:360px){h1{font-size:20px}.icon{width:84px;height:84px}}
+</style>
+</head>
+<body>
+<div class="card">
+  <img class="icon" src="{{IMAGE}}" alt="{{TITLE}}">
+  <h1>{{TITLE}}</h1>
+  <p class="desc">{{DESC}}</p>
+  <a class="btn" id="go" href="{{TARGET}}">继续访问</a>
+  <p class="tip">如无法跳转，请点右上角 <b>···</b> 选择在浏览器中打开</p>
+</div>
+<script>
+(function(){
+  var t = document.getElementById('go');
+  var target = t.getAttribute('href');
+  if (!target || target === '#' || target === '') {
+    t.textContent = '长按识别下方内容';
+    t.style.background = '#8c98a6';
+    t.setAttribute('href', 'javascript:void(0)');
+    return;
+  }
+  t.addEventListener('click', function(){ window.location.href = target; });
+})();
+</script>
+</body>
+</html>

@@ -73,6 +73,48 @@ function servePage(req, res, file) {
   });
 }
 
+const ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ESC_MAP[c]);
+}
+
+function absUrl(req, v) {
+  const raw = String(v || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^(weixin|alipays|tel|mailto):/i.test(raw)) return raw;
+  const base = baseOf(req);
+  return base + (raw.charAt(0) === '/' ? raw : '/' + raw);
+}
+
+// 卡片页：/ 带 t / d / i / u 任一参数时渲染，服务端直出 og，供抖音抓取
+function renderCard(req, res, q) {
+  fs.readFile(path.join(ROOT, 'card.html'), (err, buf) => {
+    if (err) {
+      send(req, res, 500, 'text/plain; charset=utf-8', Buffer.from('card template missing'));
+      log(req, 500, 0);
+      return;
+    }
+    const title = (q.get('t') || '星链客谷').slice(0, 60);
+    const desc = (q.get('d') || '').slice(0, 120);
+    const image = absUrl(req, q.get('i') || '/og-user.jpg');
+    const target = absUrl(req, q.get('u') || '');
+    const self = baseOf(req) + req.url;
+
+    const html = buf.toString('utf8')
+      .split('{{TITLE}}').join(escHtml(title))
+      .split('{{DESC}}').join(escHtml(desc))
+      .split('{{IMAGE}}').join(escHtml(image))
+      .split('{{TARGET}}').join(escHtml(target))
+      .split('{{SELF}}').join(escHtml(self));
+
+    const out = Buffer.from(html, 'utf8');
+    send(req, res, 200, MIME['.html'], out);
+    log(req, 200, out.length);
+  });
+}
+
 function serveStatic(req, res, rel) {
   const clean = rel.replace(/^\/+/, '');
   if (!clean || clean.indexOf('..') !== -1) {
@@ -122,6 +164,11 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === '/' || pathname === '/index.html') {
+    const q = new URL(url, 'http://placeholder').searchParams;
+    if (q.has('t') || q.has('d') || q.has('i') || q.has('u')) {
+      renderCard(req, res, q);
+      return;
+    }
     servePage(req, res, 'index.html');
     return;
   }
