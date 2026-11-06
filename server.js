@@ -97,7 +97,7 @@ function renderCard(req, res, q) {
       return;
     }
     const title = (q.get('t') || '星链客谷').slice(0, 60);
-    const desc = (q.get('d') || '').slice(0, 120);
+    const desc = (q.get('d') || '点击查看完整内容').slice(0, 120);
     const image = absUrl(req, q.get('i') || '/og-user.jpg');
     const target = absUrl(req, q.get('u') || '');
     const self = baseOf(req) + req.url;

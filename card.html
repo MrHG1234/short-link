@@ -2,11 +2,13 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>{{TITLE}}</title>
 <meta name="description" content="{{DESC}}">
 <link rel="icon" href="{{IMAGE}}">
+<link rel="shortcut icon" href="{{IMAGE}}">
 <link rel="apple-touch-icon" href="{{IMAGE}}">
+<link rel="image_src" href="{{IMAGE}}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{{TITLE}}">
 <meta property="og:title" content="{{TITLE}}">
@@ -14,55 +16,122 @@
 <meta property="og:url" content="{{SELF}}">
 <meta property="og:image" content="{{IMAGE}}">
 <meta property="og:image:secure_url" content="{{IMAGE}}">
-<meta property="og:image:type" content="image/jpeg">
-<meta property="og:image:width" content="1080">
-<meta property="og:image:height" content="1080">
 <meta property="og:image:alt" content="{{TITLE}}">
-<link rel="image_src" href="{{IMAGE}}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{TITLE}}">
 <meta name="twitter:description" content="{{DESC}}">
 <meta name="twitter:image" content="{{IMAGE}}">
-<meta name="build" content="dycloud-card-v1">
+<meta name="build" content="dycloud-share-v1">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{margin:0;background:#f2f4f7;color:#111820;
-  font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-  -webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center;padding:24px}
-.card{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:28px 26px 24px;
-  box-shadow:0 12px 40px rgba(15,43,70,.10);text-align:center}
-.icon{width:96px;height:96px;border-radius:22px;object-fit:cover;display:block;margin:0 auto 20px;
-  background:#eef1f5;box-shadow:0 6px 18px rgba(15,43,70,.12)}
-h1{font-size:22px;line-height:1.4;font-weight:600;margin:0 0 10px;letter-spacing:-.01em}
-.desc{font-size:15px;line-height:1.7;color:#5c6773;margin:0 0 24px;white-space:pre-wrap;word-break:break-word}
-.btn{display:block;width:100%;appearance:none;border:0;border-radius:14px;background:#0f2b46;color:#fff;
-  font-size:16px;font-weight:600;padding:15px 20px;cursor:pointer;font-family:inherit;text-decoration:none}
-.btn:active{opacity:.86}
-.tip{margin:18px 0 0;font-size:12.5px;color:#9aa4b0;line-height:1.8}
-.tip b{color:#0f2b46;font-weight:600}
-@media (max-width:360px){h1{font-size:20px}.icon{width:84px;height:84px}}
+body{margin:0;background:#f1f5fb;color:#1b1f26;
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 24px;min-height:100vh;min-height:100dvh}
+.lead{margin:0;font-size:19px;font-weight:500;text-align:center;letter-spacing:-.01em;color:#1b1f26}
+.lead .em{font-size:19px}
+.sub{margin:10px 0 0;font-size:19px;font-weight:500;text-align:center;letter-spacing:-.01em}
+.preview{width:100%;max-width:420px;margin:38px 0 0;background:#fff;border-radius:18px;
+  padding:14px 16px;display:flex;align-items:center;gap:14px;
+  box-shadow:0 10px 30px rgba(24,60,120,.10);cursor:pointer;
+  transition:transform .18s ease}
+.preview:active{transform:scale(.985)}
+.p-icon{width:64px;height:64px;border-radius:10px;object-fit:cover;flex:0 0 auto;background:#eef2f8}
+.p-body{min-width:0;flex:1}
+.p-title{font-size:16px;font-weight:600;color:#1b1f26;line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.p-desc{margin-top:5px;font-size:13px;color:#8b96a5;line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.share-btn{width:100%;max-width:300px;margin:34px 0 0;appearance:none;border:0;
+  border-radius:12px;padding:14px 20px;font-size:16px;font-weight:600;color:#fff;
+  font-family:inherit;letter-spacing:.02em;
+  background:linear-gradient(180deg,#3d7bff,#2a63f0);
+  box-shadow:0 8px 22px rgba(47,107,255,.30);cursor:pointer}
+.share-btn:active{transform:translateY(1px);opacity:.92}
+.hint{margin:18px 0 0;font-size:12.5px;color:#9aa4b0;text-align:center;line-height:1.8;max-width:320px}
+.hint b{color:#5b6b80;font-weight:600}
+.tip{position:fixed;inset:0;background:rgba(8,18,38,.76);display:none;
+  flex-direction:column;align-items:flex-end;justify-content:flex-start;
+  padding:16px 20px 0;z-index:99;color:#fff;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.tip.on{display:flex}
+.tip .arrow{font-size:36px;line-height:1;transform:rotate(-12deg)}
+.tip .tbox{margin-top:10px;align-self:flex-end;max-width:230px;
+  font-size:14px;line-height:1.75;text-align:right;color:#eaf1ff}
+.tip .tbox b{color:#fff}
+@media (max-width:360px){
+  .lead,.sub{font-size:17px}
+  .preview{margin-top:30px}
+  .p-icon{width:56px;height:56px}
+}
 </style>
 </head>
 <body>
-<div class="card">
-  <img class="icon" src="{{IMAGE}}" alt="{{TITLE}}">
-  <h1>{{TITLE}}</h1>
-  <p class="desc">{{DESC}}</p>
-  <a class="btn" id="go" href="{{TARGET}}">继续访问</a>
-  <p class="tip">如无法跳转，请点右上角 <b>···</b> 选择在浏览器中打开</p>
-</div>
+  <p class="lead">点击下方分享按钮 <span class="em">👇</span></p>
+  <p class="sub">转发卡片给任意好友即可生成卡片</p>
+
+  <div class="preview" id="preview" data-target="{{TARGET}}">
+    <img class="p-icon" src="{{IMAGE}}" alt="{{TITLE}}">
+    <div class="p-body">
+      <div class="p-title">{{TITLE}}</div>
+      <div class="p-desc">{{DESC}}</div>
+    </div>
+  </div>
+
+  <button class="share-btn" id="shareBtn" type="button">分享并生成卡片</button>
+  <p class="hint">若按钮无反应，请点右上角 <b>···</b> 选择「分享」<br>或长按页面选择「分享给好友」</p>
+
+  <div class="tip" id="tipBox">
+    <div class="arrow">↗</div>
+    <div class="tbox">请点右上角 <b>···</b><br>选择 <b>分享</b> 或 <b>分享给好友</b></div>
+  </div>
+
 <script>
 (function(){
-  var t = document.getElementById('go');
-  var target = t.getAttribute('href');
-  if (!target || target === '#' || target === '') {
-    t.textContent = '长按识别下方内容';
-    t.style.background = '#8c98a6';
-    t.setAttribute('href', 'javascript:void(0)');
-    return;
+  var btn = document.getElementById('shareBtn');
+  var tip = document.getElementById('tipBox');
+  var preview = document.getElementById('preview');
+
+  function hideTip(){ tip.classList.remove('on'); }
+  function showTip(){ tip.classList.add('on'); setTimeout(hideTip, 4000); }
+
+  function tryNativeShare(){
+    // 抖音 / 多闪 / 头条系 WebView 分享桥，能调则调，调不到就走兜底引导
+    try {
+      if (window.tt && typeof window.tt.shareAppMessage === 'function') {
+        window.tt.shareAppMessage({
+          title: document.title,
+          desc: (document.querySelector('meta[name=description]') || {}).content || '',
+          imageUrl: (document.querySelector('meta[property="og:image"]') || {}).content || '',
+          success: hideTip
+        });
+        return true;
+      }
+    } catch (e) {}
+    try {
+      if (window.JSBridge && typeof window.JSBridge.postMessage === 'function') {
+        window.JSBridge.postMessage(JSON.stringify({ func: 'share' }));
+        return true;
+      }
+    } catch (e) {}
+    return false;
   }
-  t.addEventListener('click', function(){ window.location.href = target; });
+
+  btn.addEventListener('click', function(){
+    if (tryNativeShare()) { showTip(); return; }
+    showTip();
+  });
+
+  tip.addEventListener('click', hideTip);
+
+  preview.addEventListener('click', function(){
+    var t = preview.getAttribute('data-target');
+    if (t && t !== '#' && t !== '') window.location.href = t;
+  });
+
+  // 空白处双击也可收起引导层
+  document.addEventListener('dblclick', hideTip);
 })();
 </script>
 </body>
