@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const PORT = 8000;
+const PORT = Number(process.env.PORT) || 8000;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -54,7 +54,7 @@ function send(req, res, status, type, body) {
     'Content-Type': type,
     'Content-Length': body.length,
     'Cache-Control': 'no-store',
-    'X-Probe-Build': 'dycloud-v2'
+    'X-Probe-Build': 'dycloud-v3'
   });
   res.end(req.method === 'HEAD' ? undefined : body);
 }
@@ -88,11 +88,22 @@ function absUrl(req, v) {
   return base + (raw.charAt(0) === '/' ? raw : '/' + raw);
 }
 
-// 卡片页：/ 带 t / d / i / u 任一参数时渲染，服务端直出 og，供抖音抓取
-function renderCard(req, res, q) {
-  fs.readFile(path.join(ROOT, 'card.html'), (err, buf) => {
+// 把值编码成可安全嵌入 <script> 的 JSON 字面量
+function jsJson(v) {
+  return JSON.stringify(String(v == null ? '' : v))
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+// 卡片页 / 分享页：带 t / d / i / u 任一参数时渲染，服务端直出 og，供抖音抓取
+function renderCard(req, res, q, template) {
+  const file = template || 'card.html';
+  fs.readFile(path.join(ROOT, file), (err, buf) => {
     if (err) {
-      send(req, res, 500, 'text/plain; charset=utf-8', Buffer.from('card template missing'));
+      send(req, res, 500, 'text/plain; charset=utf-8', Buffer.from('card template missing: ' + file));
       log(req, 500, 0);
       return;
     }
@@ -107,7 +118,11 @@ function renderCard(req, res, q) {
       .split('{{DESC}}').join(escHtml(desc))
       .split('{{IMAGE}}').join(escHtml(image))
       .split('{{TARGET}}').join(escHtml(target))
-      .split('{{SELF}}').join(escHtml(self));
+      .split('{{SELF}}').join(escHtml(self))
+      .split('{{TITLE_JSON}}').join(jsJson(title))
+      .split('{{DESC_JSON}}').join(jsJson(desc))
+      .split('{{IMAGE_JSON}}').join(jsJson(image))
+      .split('{{TARGET_JSON}}').join(jsJson(target));
 
     const out = Buffer.from(html, 'utf8');
     send(req, res, 200, MIME['.html'], out);
@@ -145,7 +160,7 @@ function serveStatic(req, res, rel) {
         'Content-Type': type,
         'Content-Length': buf.length,
         'Cache-Control': type.startsWith('image/') ? 'public, max-age=3600' : 'no-store',
-        'X-Probe-Build': 'dycloud-v2'
+        'X-Probe-Build': 'dycloud-v3'
       });
       res.end(req.method === 'HEAD' ? undefined : buf);
       log(req, 200, buf.length);
@@ -163,10 +178,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 分享页：/share 或 /?share=1，走 aweme bridge 原生分享生成卡片
+  if (pathname === '/share' || pathname === '/share/' || pathname === '/share.html') {
+    const q = new URL(url, 'http://placeholder').searchParams;
+    renderCard(req, res, q, 'share.html');
+    return;
+  }
+
   if (pathname === '/' || pathname === '/index.html') {
     const q = new URL(url, 'http://placeholder').searchParams;
+    if (q.get('share') === '1') {
+      renderCard(req, res, q, 'share.html');
+      return;
+    }
     if (q.has('t') || q.has('d') || q.has('i') || q.has('u')) {
-      renderCard(req, res, q);
+      renderCard(req, res, q, 'card.html');
       return;
     }
     servePage(req, res, 'index.html');
