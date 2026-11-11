@@ -99,6 +99,7 @@
 <button class="btn" id="sBtn" type="button">分享并生成卡片</button>
 
 <p class="hint">若按钮无反应，请点右上角 <b>···</b> 选择「分享」</p>
+<p class="hint" id="sNote" style="margin-top:6px;display:none"></p>
 
 <div class="toast" id="sToast"></div>
 <pre id="dbg"></pre>
@@ -110,9 +111,18 @@
   var IMAGE  = {{IMAGE_JSON}};
   var TARGET = {{TARGET_JSON}};
 
+  // 字节 CDN 上的兜底封面（用于隔离「图片源」变量）
+  var CDN_IMG = 'https://api-v3.tos-cn-shanghai.volces.com/card1.jpg';
+
+  // 关键：抖音卡片要求 share_url 是 aweme:// 协议（webview 壳），传普通 https 会被判失败 code -1
+  var SHARE_URL = /^aweme:\/\//i.test(TARGET)
+    ? TARGET
+    : 'aweme://webview/?url=' + encodeURIComponent(TARGET);
+
   var dbgOn = /(?:\?|&)debug=1/.test(location.search);
   var dbgEl = document.getElementById('dbg');
   var toastEl = document.getElementById('sToast');
+  var noteEl = document.getElementById('sNote');
   var btn = document.getElementById('sBtn');
   var toastTimer = null;
 
@@ -129,12 +139,6 @@
     toastTimer = setTimeout(function () { toastEl.classList.remove('on'); }, ms || 2600);
   }
 
-  var BROKEN_IMG = /^https?:\/\/[^/]+\.service\.douyincloud\.run\//i;
-  if (BROKEN_IMG.test(IMAGE) && !dbgOn) {
-    // 抖音云自带域名托管图片在部分场景会被判为不可信源，占位提示
-    log('image host = douyincloud, keep as is');
-  }
-
   function inDouyin() {
     return /douyin|aweme|bytedance/i.test(navigator.userAgent || '');
   }
@@ -148,7 +152,6 @@
       if (bridge()) { resolve(bridge()); return; }
       var src = 'https://lf3-cdn-tos.douyinstatic.com/obj/magic-cn/gecko/offline/douyin/magic_eco/magic-public/bridge-aweme-1.4.6-production.umd.js';
       if (document.querySelector('script[data-aweme-bridge]')) {
-        // 已插入但尚未就绪，轮询等待
         var n = 0;
         var t = setInterval(function () {
           n++;
@@ -177,31 +180,90 @@
     });
   }
 
-  function nativeShare(b) {
-    var params = {
+  // 单次分享尝试：等回调，最多 2.5s；超时视为「面板已弹出」
+  function attempt(b, params, tag) {
+    return new Promise(function (resolve) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        log('[' + tag + '] no callback in 2.5s（面板可能已弹出）');
+        resolve({ tag: tag, code: 'no-cb' });
+      }, 2500);
+      try {
+        log('[' + tag + '] share url=' + params.url.slice(0, 48) + ' img=' + params.image.slice(0, 44));
+        b.app.share(params, function (res) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          var code = res && res.code;
+          log('[' + tag + '] cb code=' + code + ' ' + JSON.stringify(res || {}).slice(0, 180));
+          resolve({ tag: tag, code: code, res: res });
+        });
+      } catch (e) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        log('[' + tag + '] throw ' + (e && e.message));
+        resolve({ tag: tag, code: 'throw' });
+      }
+    });
+  }
+
+  function params(shareUrl, img) {
+    return {
       platform: 'share_native',
       title: TITLE,
       desc: DESC,
-      url: TARGET,
-      innerUrl: TARGET,
-      image: IMAGE
+      url: shareUrl,
+      innerUrl: shareUrl,
+      image: img
     };
-    log('aweme.app.share -> ' + JSON.stringify(params).slice(0, 220));
-    if (b && b.app && typeof b.app.share === 'function') {
-      b.app.share(params, function (res) {
-        log('share cb ' + JSON.stringify(res || {}));
-        if (res && res.code === -1) {
-          toast('分享失败，请点右上角 ··· 手动分享');
+  }
+
+  function runSingle(b) {
+    return attempt(b, params(SHARE_URL, IMAGE), 'A').then(function (r) {
+      if (r.code === -1) toast('分享失败，请点右上角 ··· 手动分享');
+      else toast('已拉起分享面板，请选择好友');
+      return r;
+    });
+  }
+
+  // debug 模式跑组合矩阵，定位到底哪个变量导致 code -1
+  function runMatrix(b) {
+    var plan = [
+      { tag: 'A', url: SHARE_URL, img: /^https?:/i.test(IMAGE) && IMAGE.indexOf('douyincloud.run') === -1 ? IMAGE : CDN_IMG, name: 'aweme:// + 非抖音云图' },
+      { tag: 'B', url: SHARE_URL, img: IMAGE, name: 'aweme:// + 本页图' },
+      { tag: 'C', url: TARGET, img: CDN_IMG, name: 'https + 字节CDN图' }
+    ];
+    var i = 0;
+    function step() {
+      if (i >= plan.length) {
+        log('全部组合失败，结论：非 url/图片问题，需换平台方案');
+        toast('三种组合都失败，请截图日志', 4200);
+        return;
+      }
+      var p = plan[i++];
+      log('--- 组合 ' + p.tag + '：' + p.name);
+      if (p.tag === 'A' && p.img !== IMAGE) {
+        noteEl.style.display = 'block';
+        noteEl.innerHTML = '当前封面用的是字节 CDN 测试图（隔离变量用）';
+      }
+      attempt(b, params(p.url, p.img), p.tag).then(function (r) {
+        if (r.code === 0 || r.code === 'no-cb') {
+          log('>>> 组合 ' + p.tag + ' 通过');
+          if (r.code === 'no-cb') toast('已拉起分享面板，请选择好友');
+          return;
         }
+        step();
       });
-      return true;
     }
-    return false;
+    step();
   }
 
   btn.addEventListener('click', function () {
     btn.disabled = true;
-    setTimeout(function () { btn.disabled = false; }, 1200);
+    setTimeout(function () { btn.disabled = false; }, 1500);
 
     if (!inDouyin()) {
       toast('请在抖音内打开本页再分享');
@@ -212,12 +274,10 @@
     }
 
     loadBridge().then(function (b) {
-      if (!nativeShare(b)) {
-        toast('分享通道未就绪，请点右上角 ··· 手动分享');
-      }
+      if (dbgOn) runMatrix(b);
+      else runSingle(b);
     }).catch(function (e) {
       log('ERR ' + e.message);
-      // 兜底：bridge 不可用时交给系统分享面板
       if (navigator.share) {
         navigator.share({ title: TITLE, text: DESC, url: TARGET }).catch(function () {});
       } else {
@@ -226,14 +286,20 @@
     });
   });
 
-  // 进入即预热 bridge，减少点击后的等待
+  // 运行时把 aweme:url 改成协议壳地址（与趣码一致）
+  (function () {
+    var m = document.querySelector('meta[name="aweme:url"]');
+    if (m) m.setAttribute('content', SHARE_URL);
+    log('share_url = ' + SHARE_URL.slice(0, 90));
+  })();
+
   if (inDouyin()) {
     loadBridge().catch(function (e) { log('preheat fail: ' + e.message); });
   } else {
     log('not in douyin ua');
   }
 
-  window.__shareInfo = { title: TITLE, desc: DESC, image: IMAGE, target: TARGET };
+  window.__shareInfo = { title: TITLE, desc: DESC, image: IMAGE, target: TARGET, shareUrl: SHARE_URL };
 })();
 </script>
 
